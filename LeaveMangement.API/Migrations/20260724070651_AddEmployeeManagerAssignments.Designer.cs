@@ -4,6 +4,7 @@ using LeaveManagement.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LeaveMangement.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724070651_AddEmployeeManagerAssignments")]
+    partial class AddEmployeeManagerAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,11 +119,16 @@ namespace LeaveMangement.API.Migrations
                     b.Property<bool>("IsManager")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ManagerId")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -155,38 +163,6 @@ namespace LeaveMangement.API.Migrations
                     b.HasIndex("ManagerId");
 
                     b.ToTable("EmployeeManagerAssignments");
-                });
-
-            modelBuilder.Entity("LeaveManagement.API.Models.LeaveApproval", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ActionAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("LeaveRequestId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ManagerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LeaveRequestId");
-
-                    b.HasIndex("ManagerId");
-
-                    b.ToTable("LeaveApprovals");
                 });
 
             modelBuilder.Entity("LeaveManagement.API.Models.LeaveBalance", b =>
@@ -233,6 +209,12 @@ namespace LeaveMangement.API.Migrations
                     b.Property<DateTime>("AppliedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ApprovedByEmployeeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
@@ -259,6 +241,8 @@ namespace LeaveMangement.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByEmployeeId");
 
                     b.HasIndex("EmployeeId");
 
@@ -435,11 +419,18 @@ namespace LeaveMangement.API.Migrations
 
             modelBuilder.Entity("LeaveManagement.API.Models.Employee", b =>
                 {
+                    b.HasOne("LeaveManagement.API.Models.Employee", "Manager")
+                        .WithMany("Employees")
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LeaveManagement.API.Models.ApplicationUser", "User")
                         .WithOne("Employee")
                         .HasForeignKey("LeaveManagement.API.Models.Employee", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Manager");
 
                     b.Navigation("User");
                 });
@@ -463,25 +454,6 @@ namespace LeaveMangement.API.Migrations
                     b.Navigation("Manager");
                 });
 
-            modelBuilder.Entity("LeaveManagement.API.Models.LeaveApproval", b =>
-                {
-                    b.HasOne("LeaveManagement.API.Models.LeaveRequest", "LeaveRequest")
-                        .WithMany("Approvals")
-                        .HasForeignKey("LeaveRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LeaveManagement.API.Models.Employee", "Manager")
-                        .WithMany()
-                        .HasForeignKey("ManagerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("LeaveRequest");
-
-                    b.Navigation("Manager");
-                });
-
             modelBuilder.Entity("LeaveManagement.API.Models.LeaveBalance", b =>
                 {
                     b.HasOne("LeaveManagement.API.Models.Employee", "Employee")
@@ -495,11 +467,17 @@ namespace LeaveMangement.API.Migrations
 
             modelBuilder.Entity("LeaveManagement.API.Models.LeaveRequest", b =>
                 {
+                    b.HasOne("LeaveManagement.API.Models.Employee", "ApprovedByEmployee")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByEmployeeId");
+
                     b.HasOne("LeaveManagement.API.Models.Employee", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("ApprovedByEmployee");
 
                     b.Navigation("Employee");
                 });
@@ -583,12 +561,9 @@ namespace LeaveMangement.API.Migrations
                 {
                     b.Navigation("EmployeeAssignments");
 
-                    b.Navigation("ManagerAssignments");
-                });
+                    b.Navigation("Employees");
 
-            modelBuilder.Entity("LeaveManagement.API.Models.LeaveRequest", b =>
-                {
-                    b.Navigation("Approvals");
+                    b.Navigation("ManagerAssignments");
                 });
 
             modelBuilder.Entity("LeaveManagement.API.Models.Permission", b =>

@@ -419,8 +419,6 @@ namespace LeaveManagement.API.Data
 
                     Designation = "Project Manager",
 
-                    ManagerId = null,
-
                     IsManager = true
                 };
 
@@ -464,8 +462,6 @@ namespace LeaveManagement.API.Data
 
                     Designation = "Junior .NET Developer",
 
-                    ManagerId = managerEmployee.Id,
-
                     IsManager = false
                 };
 
@@ -479,7 +475,28 @@ namespace LeaveManagement.API.Data
             }
 
 
+            var assignmentExists =
+    await context.EmployeeManagerAssignments
+    .AnyAsync(a =>
+        a.EmployeeId == ahmedEmployee.Id &&
+        a.ManagerId == managerEmployee.Id);
 
+
+
+            if (!assignmentExists)
+            {
+                context.EmployeeManagerAssignments.Add(
+                    new EmployeeManagerAssignment
+                    {
+                        EmployeeId = ahmedEmployee.Id,
+
+                        ManagerId = managerEmployee.Id,
+
+                        IsActive = true,
+
+                        AssignedOn = DateTime.UtcNow
+                    });
+            }
 
 
 

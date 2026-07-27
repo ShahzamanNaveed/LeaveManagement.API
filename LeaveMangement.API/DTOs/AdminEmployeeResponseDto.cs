@@ -10,7 +10,8 @@
 
         public string Designation { get; set; } = string.Empty;
 
-        public string? ManagerName { get; set; }
+        public List<string> ManagerNames { get; set; }
+            = new();
 
         public bool IsManager { get; set; }
     }

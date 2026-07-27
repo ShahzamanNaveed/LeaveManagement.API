@@ -41,7 +41,7 @@ namespace LeaveManagement.API.Services
 
 
         public async Task<List<AdminEmployeeResponseDto>>
-            GetAllEmployeesAsync()
+    GetAllEmployeesAsync()
         {
 
             var employees =
@@ -62,10 +62,16 @@ namespace LeaveManagement.API.Services
 
                         Designation = e.Designation,
 
-                        ManagerName =
-                            e.Manager != null
-                            ? e.Manager.FullName
-                            : null,
+                        ManagerNames =
+                            e.ManagerAssignments
+
+                                .Where(a =>
+                                    a.IsActive)
+
+                                .Select(a =>
+                                    a.Manager.FullName)
+
+                                .ToList(),
 
                         IsManager = e.IsManager
 
@@ -79,11 +85,9 @@ namespace LeaveManagement.API.Services
 
 
 
-
         public async Task CreateEmployeeAsync(
             CreateEmployeeRequestDto request)
         {
-
 
             var existingUser =
                 await _userManager
@@ -144,7 +148,7 @@ namespace LeaveManagement.API.Services
             {
                 await _roleManager
                     .CreateAsync(
-                    new IdentityRole("Employee"));
+                        new IdentityRole("Employee"));
             }
 
 
@@ -160,8 +164,6 @@ namespace LeaveManagement.API.Services
 
 
 
-
-
             var employee = new Employee
             {
                 UserId = user.Id,
@@ -171,8 +173,6 @@ namespace LeaveManagement.API.Services
                 Department = request.Department,
 
                 Designation = request.Designation,
-
-                ManagerId = request.ManagerId,
 
                 IsManager = false
             };
@@ -190,6 +190,60 @@ namespace LeaveManagement.API.Services
 
 
 
+
+
+            // =========================
+            // Assign Managers
+            // =========================
+
+            if (request.ManagerIds.Any())
+            {
+
+                var managers =
+                    await _employeeRepository
+                    .GetEmployeesByIdsAsync(
+                        request.ManagerIds);
+
+
+
+                if (managers.Count !=
+                    request.ManagerIds.Count)
+                {
+                    throw new Exception(
+                        "One or more managers were not found.");
+                }
+
+
+
+                if (managers.Any(m => !m.IsManager))
+                {
+                    throw new Exception(
+                        "One or more selected employees are not managers.");
+                }
+
+
+
+                var assignments =
+                    managers
+                        .Select(m =>
+                            new EmployeeManagerAssignment
+                            {
+                                EmployeeId = employee.Id,
+
+                                ManagerId = m.Id
+                            })
+                        .ToList();
+
+
+
+                await _employeeRepository
+                    .AddManagerAssignmentsAsync(
+                        assignments);
+
+
+                await _employeeRepository
+                    .SaveChangesAsync();
+            }
 
 
 
@@ -326,8 +380,6 @@ namespace LeaveManagement.API.Services
 
                 Designation = request.Designation,
 
-                ManagerId = null,
-
                 IsManager = true
             };
 
@@ -389,8 +441,8 @@ namespace LeaveManagement.API.Services
 
 
         public async Task AssignManagerAsync(
-    int employeeId,
-    AssignManagerRequestDto request)
+       int employeeId,
+       AssignManagerRequestDto request)
         {
 
             var employee =
@@ -407,29 +459,16 @@ namespace LeaveManagement.API.Services
 
 
 
-            var manager =
-                await _employeeRepository
-                .GetByIdAsync(request.ManagerId);
-
-
-
-            if (manager == null)
+            if (request.ManagerIds == null ||
+                !request.ManagerIds.Any())
             {
                 throw new Exception(
-                    "Manager not found.");
+                    "At least one manager must be assigned.");
             }
 
 
 
-            if (!manager.IsManager)
-            {
-                throw new Exception(
-                    "Selected employee is not a manager.");
-            }
-
-
-
-            if (employeeId == request.ManagerId)
+            if (request.ManagerIds.Contains(employeeId))
             {
                 throw new Exception(
                     "Employee cannot be their own manager.");
@@ -437,7 +476,68 @@ namespace LeaveManagement.API.Services
 
 
 
-            employee.ManagerId = request.ManagerId;
+            var managers =
+                await _employeeRepository
+                .GetEmployeesByIdsAsync(
+                    request.ManagerIds);
+
+
+
+            if (managers.Count !=
+                request.ManagerIds.Count)
+            {
+                throw new Exception(
+                    "One or more managers were not found.");
+            }
+
+
+
+            if (managers.Any(m => !m.IsManager))
+            {
+                throw new Exception(
+                    "One or more selected employees are not managers.");
+            }
+
+
+
+            // =========================
+            // Replace Existing Assignments
+            // =========================
+
+            var existingAssignments =
+                await _employeeRepository
+                .GetManagerAssignmentsAsync(
+                    employeeId);
+
+
+
+            _employeeRepository
+                .RemoveManagerAssignments(
+                    existingAssignments);
+
+
+
+            var newAssignments =
+                managers
+                    .Select(manager =>
+                        new EmployeeManagerAssignment
+                        {
+                            EmployeeId = employeeId,
+
+                            ManagerId = manager.Id,
+
+                            AssignedOn = DateTime.UtcNow,
+
+                            IsActive = true
+                        })
+                    .ToList();
+
+
+
+            await _employeeRepository
+                .AddManagerAssignmentsAsync(
+                    newAssignments);
+
 
 
             await _employeeRepository

@@ -12,6 +12,7 @@
 
         public string Designation { get; set; } = string.Empty;
 
-        public int? ManagerId { get; set; }
+        public List<int> ManagerIds { get; set; }
+            = new();
     }
 }

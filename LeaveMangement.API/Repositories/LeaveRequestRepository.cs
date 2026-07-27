@@ -70,25 +70,28 @@ namespace LeaveManagement.API.Repositories
 
 
 
-
         public async Task<List<LeaveRequest>>
             GetPendingRequestsForManagerAsync(
                 int managerId)
         {
             return await _context.LeaveRequests
 
-                // Load employee who applied leave
                 .Include(l =>
                     l.Employee)
 
-                // Load employee's Identity user
-                // for email access
-                .ThenInclude(e =>
-                    e.User)
+                    .ThenInclude(e =>
+                        e.User)
+
+                .Include(l =>
+                    l.Approvals)
 
                 .Where(l =>
-                    l.Employee.ManagerId == managerId &&
-                    l.Status == LeaveStatus.Submitted)
+
+                    l.Status == LeaveStatus.Submitted &&
+
+                    l.Approvals.Any(a =>
+                        a.ManagerId == managerId &&
+                        a.Status == LeaveStatus.Submitted))
 
                 .OrderByDescending(l =>
                     l.AppliedAt)
@@ -105,20 +108,24 @@ namespace LeaveManagement.API.Repositories
         {
             return await _context.LeaveRequests
 
-                // Load employee
                 .Include(l =>
                     l.Employee)
 
-                // Load employee email
-                .ThenInclude(e =>
-                    e.User)
+                    .ThenInclude(e =>
+                        e.User)
+
+                .Include(l =>
+                    l.Approvals)
+
+                        .ThenInclude(a =>
+                            a.Manager)
+
+                                .ThenInclude(m =>
+                                    m.User)
 
                 .FirstOrDefaultAsync(l =>
                     l.Id == id);
         }
-
-
-
 
 
         public async Task SaveChangesAsync()
@@ -126,5 +133,42 @@ namespace LeaveManagement.API.Repositories
             await _context.SaveChangesAsync();
         }
 
+
+
+        public async Task AddLeaveApprovalsAsync(
+    List<LeaveApproval> approvals)
+        {
+            await _context.LeaveApprovals
+                .AddRangeAsync(approvals);
+        }
+
+
+
+
+
+        public async Task<LeaveApproval?>
+            GetManagerApprovalAsync(
+                int leaveRequestId,
+                int managerId)
+        {
+            return await _context.LeaveApprovals
+                .FirstOrDefaultAsync(a =>
+                    a.LeaveRequestId == leaveRequestId &&
+                    a.ManagerId == managerId);
+        }
+
+
+
+
+
+        public async Task<List<LeaveApproval>>
+            GetApprovalsAsync(
+                int leaveRequestId)
+        {
+            return await _context.LeaveApprovals
+                .Where(a =>
+                    a.LeaveRequestId == leaveRequestId)
+                .ToListAsync();
+        }
     }
 }

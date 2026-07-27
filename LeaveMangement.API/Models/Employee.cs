@@ -1,4 +1,6 @@
-﻿namespace LeaveManagement.API.Models
+﻿using LeaveManagement.API.Models;
+
+namespace LeaveManagement.API.Models
 {
     public class Employee
     {
@@ -12,19 +14,34 @@
 
         public string Designation { get; set; } = string.Empty;
 
-        public int? ManagerId { get; set; }
-
         public bool IsManager { get; set; } = false;
 
 
 
+        // =========================
         // Navigation Properties
+        // =========================
 
         public ApplicationUser User { get; set; } = null!;
 
-        public Employee? Manager { get; set; }
 
-        public ICollection<Employee> Employees { get; set; }
-            = new List<Employee>();
+
+        // =========================
+        // Multi Manager Navigation
+        // =========================
+
+        // Managers assigned to this employee
+        public ICollection<EmployeeManagerAssignment>
+            ManagerAssignments
+        { get; set; }
+            = new List<EmployeeManagerAssignment>();
+
+
+
+        // Employees managed by this manager
+        public ICollection<EmployeeManagerAssignment>
+            EmployeeAssignments
+        { get; set; }
+            = new List<EmployeeManagerAssignment>();
     }
 }

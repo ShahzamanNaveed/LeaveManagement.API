@@ -21,23 +21,29 @@ namespace LeaveManagement.API.Models
         public string Reason { get; set; } = string.Empty;
 
         public LeaveStatus Status { get; set; }
-                = LeaveStatus.Submitted;
+            = LeaveStatus.Submitted;
 
         public DateTime AppliedAt { get; set; }
             = DateTime.UtcNow;
 
 
 
-
-        public int? ApprovedByEmployeeId { get; set; }
-
-        public DateTime? ApprovedAt { get; set; }
-
-
+        // =========================
+        // Navigation Properties
+        // =========================
 
         public Employee Employee { get; set; } = null!;
 
 
-        public Employee? ApprovedByEmployee { get; set; }
+
+        // =========================
+        // Manager Approvals
+        // =========================
+
+        public ICollection<LeaveApproval>
+            Approvals
+        { get; set; }
+            = new List<LeaveApproval>();
+
     }
 }

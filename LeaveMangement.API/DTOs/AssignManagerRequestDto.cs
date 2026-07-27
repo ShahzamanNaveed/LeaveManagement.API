@@ -2,6 +2,7 @@
 {
     public class AssignManagerRequestDto
     {
-        public int ManagerId { get; set; }
+        public List<int> ManagerIds { get; set; }
+            = new();
     }
 }

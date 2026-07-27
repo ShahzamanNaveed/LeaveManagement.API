@@ -4,6 +4,7 @@ using LeaveManagement.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LeaveMangement.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724080933_AddLeaveApprovalTable")]
+    partial class AddLeaveApprovalTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,11 +119,16 @@ namespace LeaveMangement.API.Migrations
                     b.Property<bool>("IsManager")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ManagerId")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -435,11 +443,18 @@ namespace LeaveMangement.API.Migrations
 
             modelBuilder.Entity("LeaveManagement.API.Models.Employee", b =>
                 {
+                    b.HasOne("LeaveManagement.API.Models.Employee", "Manager")
+                        .WithMany("Employees")
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LeaveManagement.API.Models.ApplicationUser", "User")
                         .WithOne("Employee")
                         .HasForeignKey("LeaveManagement.API.Models.Employee", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Manager");
 
                     b.Navigation("User");
                 });
@@ -582,6 +597,8 @@ namespace LeaveMangement.API.Migrations
             modelBuilder.Entity("LeaveManagement.API.Models.Employee", b =>
                 {
                     b.Navigation("EmployeeAssignments");
+
+                    b.Navigation("Employees");
 
                     b.Navigation("ManagerAssignments");
                 });

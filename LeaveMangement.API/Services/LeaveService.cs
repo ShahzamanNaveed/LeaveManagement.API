@@ -1,7 +1,7 @@
 ﻿using LeaveManagement.API.Enums;
 using LeaveManagement.API.Exceptions;
-using LeaveMangement.API.DTOs;
 using LeaveManagement.API.Models;
+using LeaveMangement.API.DTOs;
 using LeaveMangement.API.Interfaces;
 
 namespace LeaveMangement.API.Services
@@ -41,6 +41,10 @@ namespace LeaveMangement.API.Services
 
 
 
+        // =====================================================
+        // APPLY LEAVE
+        // =====================================================
+
         public async Task ApplyLeaveAsync(
             int employeeId,
             ApplyLeaveRequestDto request)
@@ -68,7 +72,6 @@ namespace LeaveMangement.API.Services
 
 
 
-
             bool hasOverlap =
                 await _leaveRequestRepository
                 .HasOverlappingRequestAsync(
@@ -87,7 +90,9 @@ namespace LeaveMangement.API.Services
 
 
 
+
             double numberOfDays;
+
 
 
             if (request.IsHalfDay)
@@ -105,6 +110,7 @@ namespace LeaveMangement.API.Services
 
 
 
+
             var balance =
                 await _leaveBalanceRepository
                 .GetBalanceAsync(
@@ -114,11 +120,14 @@ namespace LeaveMangement.API.Services
 
 
 
+
+
             if (balance == null)
             {
                 throw new NotFoundException(
                     "Leave balance not found.");
             }
+
 
 
 
@@ -133,26 +142,60 @@ namespace LeaveMangement.API.Services
 
 
 
+            // =====================================================
+            // Get Assigned Managers
+            // =====================================================
+
+            var managers =
+                await _employeeRepository
+                .GetManagersByEmployeeIdAsync(employeeId);
+
+
+
+
+
+            if (!managers.Any())
+            {
+                throw new BadRequestException(
+                    "No manager assigned to employee.");
+            }
+
+
+
+
+
+            // =====================================================
+            // Create Leave Request
+            // =====================================================
+
             var leaveRequest =
                 new LeaveRequest
                 {
                     EmployeeId = employeeId,
 
-                    LeaveType = request.LeaveType,
+                    LeaveType =
+                        request.LeaveType,
 
-                    StartDate = request.StartDate,
+                    StartDate =
+                        request.StartDate,
 
-                    EndDate = request.EndDate,
+                    EndDate =
+                        request.EndDate,
 
-                    NumberOfDays = numberOfDays,
+                    NumberOfDays =
+                        numberOfDays,
 
-                    IsHalfDay = request.IsHalfDay,
+                    IsHalfDay =
+                        request.IsHalfDay,
 
-                    Reason = request.Reason,
+                    Reason =
+                        request.Reason,
 
-                    Status = LeaveStatus.Submitted,
+                    Status =
+                        LeaveStatus.Submitted,
 
-                    AppliedAt = DateTime.UtcNow
+                    AppliedAt =
+                        DateTime.UtcNow
                 };
 
 
@@ -171,28 +214,69 @@ namespace LeaveMangement.API.Services
 
 
 
-            // ===============================
-            // Send Email To Manager
-            // ===============================
+            // =====================================================
+            // Create Manager Approval Records
+            // =====================================================
 
+            var approvals =
+                managers
+                .Select(manager =>
+                    new LeaveApproval
+                    {
+                        LeaveRequestId =
+                            leaveRequest.Id,
+
+                        ManagerId =
+                            manager.Id,
+
+                        Status =
+                            LeaveStatus.Submitted
+                    })
+                .ToList();
+
+
+
+
+
+            await _leaveRequestRepository
+                .AddLeaveApprovalsAsync(
+                    approvals);
+
+
+
+            await _leaveRequestRepository
+                .SaveChangesAsync();
+
+
+
+
+
+            // =====================================================
+            // Send Email To Managers
+            // =====================================================
 
             var employee =
                 await _employeeRepository
-                .GetEmployeeWithManagerAsync(employeeId);
+                .GetByIdAsync(employeeId);
 
 
 
-            if (employee != null &&
-                employee.Manager != null &&
-                employee.Manager.User != null)
+
+
+            foreach (var manager in managers)
             {
+
+                if (manager.User == null)
+                    continue;
+
+
 
                 string emailBody =
                     $"""
                     New Leave Request Submitted
 
                     Employee:
-                    {employee.FullName}
+                    {employee!.FullName}
 
                     Department:
                     {employee.Department}
@@ -219,17 +303,17 @@ namespace LeaveMangement.API.Services
 
                 await _emailService
                     .SendEmailAsync(
-                        employee.Manager.User.Email!,
+                        manager.User.Email!,
                         "New Leave Request Submitted",
                         emailBody);
             }
-
         }
 
 
 
-
-
+        // =====================================================
+        // GET MY LEAVES
+        // =====================================================
 
         public async Task<List<LeaveResponseDto>>
             GetMyLeavesAsync(
@@ -242,41 +326,47 @@ namespace LeaveMangement.API.Services
 
 
 
-            return leaves.Select(l =>
-                new LeaveResponseDto
-                {
-                    Id = l.Id,
+            return leaves
+                .Select(l =>
+                    new LeaveResponseDto
+                    {
+                        Id = l.Id,
 
-                    LeaveType =
-                        l.LeaveType.ToString(),
+                        LeaveType =
+                            l.LeaveType.ToString(),
 
-                    StartDate =
-                        l.StartDate,
+                        StartDate =
+                            l.StartDate,
 
-                    EndDate =
-                        l.EndDate,
+                        EndDate =
+                            l.EndDate,
 
-                    NumberOfDays =
-                        l.NumberOfDays,
+                        NumberOfDays =
+                            l.NumberOfDays,
 
-                    IsHalfDay =
-                        l.IsHalfDay,
+                        IsHalfDay =
+                            l.IsHalfDay,
 
-                    Reason =
-                        l.Reason,
+                        Reason =
+                            l.Reason,
 
-                    Status =
-                        l.Status.ToString(),
+                        Status =
+                            l.Status.ToString(),
 
-                    AppliedAt =
-                        l.AppliedAt
+                        AppliedAt =
+                            l.AppliedAt
 
-                }).ToList();
+                    })
+                .ToList();
         }
 
 
 
 
+
+        // =====================================================
+        // GET MY LEAVE BALANCES
+        // =====================================================
 
         public async Task<List<LeaveBalanceResponseDto>>
             GetMyBalancesAsync(
@@ -289,77 +379,96 @@ namespace LeaveMangement.API.Services
 
 
 
-            return balances.Select(b =>
-                new LeaveBalanceResponseDto
-                {
-                    LeaveType =
-                        b.LeaveType.ToString(),
+            return balances
+                .Select(b =>
+                    new LeaveBalanceResponseDto
+                    {
+                        LeaveType =
+                            b.LeaveType.ToString(),
 
-                    TotalBalance =
-                        b.TotalBalance,
+                        TotalBalance =
+                            b.TotalBalance,
 
-                    ConsumedBalance =
-                        b.ConsumedBalance,
+                        ConsumedBalance =
+                            b.ConsumedBalance,
 
-                    RemainingBalance =
-                        b.RemainingBalance,
+                        RemainingBalance =
+                            b.RemainingBalance,
 
-                    Year =
-                        b.Year
+                        Year =
+                            b.Year
 
-                }).ToList();
-
+                    })
+                .ToList();
         }
+
+
+
+
+
+        // =====================================================
+        // GET PENDING REQUESTS FOR MANAGER
+        // =====================================================
+
         public async Task<List<ManagerLeaveResponseDto>>
-    GetPendingRequestsForManagerAsync(
-        int managerId)
+            GetPendingRequestsForManagerAsync(
+                int managerId)
         {
 
             var requests =
                 await _leaveRequestRepository
-                .GetPendingRequestsForManagerAsync(managerId);
+                .GetPendingRequestsForManagerAsync(
+                    managerId);
 
 
 
-            return requests.Select(l =>
-                new ManagerLeaveResponseDto
-                {
-                    Id = l.Id,
 
-                    EmployeeName =
-                        l.Employee.FullName,
 
-                    LeaveType =
-                        l.LeaveType.ToString(),
+            return requests
+                .Select(l =>
+                    new ManagerLeaveResponseDto
+                    {
+                        Id =
+                            l.Id,
 
-                    StartDate =
-                        l.StartDate,
+                        EmployeeName =
+                            l.Employee.FullName,
 
-                    EndDate =
-                        l.EndDate,
+                        LeaveType =
+                            l.LeaveType.ToString(),
 
-                    NumberOfDays =
-                        l.NumberOfDays,
+                        StartDate =
+                            l.StartDate,
 
-                    IsHalfDay =
-                        l.IsHalfDay,
+                        EndDate =
+                            l.EndDate,
 
-                    Reason =
-                        l.Reason,
+                        NumberOfDays =
+                            l.NumberOfDays,
 
-                    Status =
-                        l.Status.ToString(),
+                        IsHalfDay =
+                            l.IsHalfDay,
 
-                    AppliedAt =
-                        l.AppliedAt
+                        Reason =
+                            l.Reason,
 
-                }).ToList();
+                        Status =
+                            l.Status.ToString(),
+
+                        AppliedAt =
+                            l.AppliedAt
+
+                    })
+                .ToList();
         }
 
 
 
 
 
+        // =====================================================
+        // APPROVE LEAVE
+        // =====================================================
 
         public async Task ApproveLeaveAsync(
             int leaveRequestId,
@@ -368,7 +477,10 @@ namespace LeaveMangement.API.Services
 
             var leaveRequest =
                 await _leaveRequestRepository
-                .GetByIdAsync(leaveRequestId);
+                .GetByIdAsync(
+                    leaveRequestId);
+
+
 
 
 
@@ -381,25 +493,100 @@ namespace LeaveMangement.API.Services
 
 
 
-            if (leaveRequest.Employee.ManagerId != managerId)
-            {
-                throw new UnauthorizedException(
-                    "You cannot approve this leave.");
-            }
-
-
-
-
 
             if (leaveRequest.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
-                    "Only submitted leave requests can be approved.");
+                    "This leave request is already processed.");
             }
 
 
 
 
+
+            // =====================================================
+            // Find Manager Approval Record
+            // =====================================================
+
+            var approval =
+                await _leaveRequestRepository
+                .GetManagerApprovalAsync(
+                    leaveRequestId,
+                    managerId);
+
+
+
+
+
+            if (approval == null)
+            {
+                throw new UnauthorizedException(
+                    "You are not assigned to approve this leave.");
+            }
+
+
+
+
+
+            if (approval.Status != LeaveStatus.Submitted)
+            {
+                throw new BadRequestException(
+                    "You have already responded to this request.");
+            }
+
+
+
+
+
+            // =====================================================
+            // Approve Current Manager
+            // =====================================================
+
+            approval.Status =
+                LeaveStatus.Approved;
+
+
+            approval.ActionAt =
+                DateTime.UtcNow;
+
+
+
+            await _leaveRequestRepository
+                .SaveChangesAsync();
+
+
+
+
+
+            // =====================================================
+            // Check All Managers Approved
+            // =====================================================
+
+            var approvals =
+                await _leaveRequestRepository
+                .GetApprovalsAsync(
+                    leaveRequestId);
+
+
+
+
+
+            bool allApproved =
+                approvals.All(a =>
+                    a.Status == LeaveStatus.Approved);
+
+
+
+
+
+            if (!allApproved)
+            {
+                return;
+            }
+
+            // =====================================================
+            // Final Leave Approval Processing
+            // =====================================================
 
             var balance =
                 await _leaveBalanceRepository
@@ -442,16 +629,11 @@ namespace LeaveMangement.API.Services
 
 
 
+
+
             leaveRequest.Status =
                 LeaveStatus.Approved;
 
-
-            leaveRequest.ApprovedByEmployeeId =
-                managerId;
-
-
-            leaveRequest.ApprovedAt =
-                DateTime.UtcNow;
 
 
 
@@ -463,10 +645,9 @@ namespace LeaveMangement.API.Services
 
 
 
-            // ===============================
-            // Send Approval Email
-            // ===============================
-
+            // =====================================================
+            // Notify Employee
+            // =====================================================
 
             if (leaveRequest.Employee.User != null)
             {
@@ -487,8 +668,7 @@ namespace LeaveMangement.API.Services
                     Number Of Days:
                     {leaveRequest.NumberOfDays}
 
-                    Approved By:
-                    Manager
+                    All assigned managers have approved your request.
                     """;
 
 
@@ -506,7 +686,9 @@ namespace LeaveMangement.API.Services
 
 
 
-
+        // =====================================================
+        // REJECT LEAVE
+        // =====================================================
 
         public async Task RejectLeaveAsync(
             int leaveRequestId,
@@ -515,7 +697,9 @@ namespace LeaveMangement.API.Services
 
             var leaveRequest =
                 await _leaveRequestRepository
-                .GetByIdAsync(leaveRequestId);
+                .GetByIdAsync(
+                    leaveRequestId);
+
 
 
 
@@ -529,27 +713,73 @@ namespace LeaveMangement.API.Services
 
 
 
-            if (leaveRequest.Employee.ManagerId != managerId)
-            {
-                throw new UnauthorizedException(
-                    "You cannot reject this leave.");
-            }
-
-
-
-
 
             if (leaveRequest.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
-                    "Only submitted leave requests can be rejected.");
+                    "This leave request is already processed.");
             }
 
 
 
 
+
+            // =====================================================
+            // Find Manager Approval Record
+            // =====================================================
+
+            var approval =
+                await _leaveRequestRepository
+                .GetManagerApprovalAsync(
+                    leaveRequestId,
+                    managerId);
+
+
+
+
+
+            if (approval == null)
+            {
+                throw new UnauthorizedException(
+                    "You are not assigned to approve this leave.");
+            }
+
+
+
+
+
+            if (approval.Status != LeaveStatus.Submitted)
+            {
+                throw new BadRequestException(
+                    "You have already responded to this request.");
+            }
+
+
+
+
+
+            // =====================================================
+            // Reject Manager Approval
+            // =====================================================
+
+            approval.Status =
+                LeaveStatus.Rejected;
+
+
+            approval.ActionAt =
+                DateTime.UtcNow;
+
+
+
+
+
+            // =====================================================
+            // Reject Complete Leave Request
+            // =====================================================
+
             leaveRequest.Status =
                 LeaveStatus.Rejected;
+
 
 
 
@@ -561,11 +791,9 @@ namespace LeaveMangement.API.Services
 
 
 
-
-            // ===============================
-            // Send Rejection Email
-            // ===============================
-
+            // =====================================================
+            // Notify Employee
+            // =====================================================
 
             if (leaveRequest.Employee.User != null)
             {
@@ -583,10 +811,10 @@ namespace LeaveMangement.API.Services
                     End Date:
                     {leaveRequest.EndDate:dd-MM-yyyy}
 
-                    Reason:
-                    {leaveRequest.Reason}
+                    Number Of Days:
+                    {leaveRequest.NumberOfDays}
 
-                    Please contact your manager for details.
+                    Your manager has rejected this request.
                     """;
 
 
@@ -600,12 +828,9 @@ namespace LeaveMangement.API.Services
 
         }
 
-
-
-
-
-
-
+        // =====================================================
+        // CANCEL LEAVE
+        // =====================================================
 
         public async Task CancelLeaveAsync(
             int leaveRequestId,
@@ -614,7 +839,10 @@ namespace LeaveMangement.API.Services
 
             var leaveRequest =
                 await _leaveRequestRepository
-                .GetByIdAsync(leaveRequestId);
+                .GetByIdAsync(
+                    leaveRequestId);
+
+
 
 
 
@@ -653,8 +881,91 @@ namespace LeaveMangement.API.Services
 
 
 
+
+
+            // =====================================================
+            // Cancel Pending Manager Approvals
+            // =====================================================
+
+            var approvals =
+                await _leaveRequestRepository
+                .GetApprovalsAsync(
+                    leaveRequestId);
+
+
+
+
+
+            foreach (var approval in approvals)
+            {
+
+                if (approval.Status ==
+                    LeaveStatus.Submitted)
+                {
+
+                    approval.Status =
+                        LeaveStatus.Cancelled;
+
+
+                    approval.ActionAt =
+                        DateTime.UtcNow;
+                }
+            }
+
+
+
+
+
             await _leaveRequestRepository
                 .SaveChangesAsync();
+
+
+
+
+
+            // =====================================================
+            // Notify Managers
+            // =====================================================
+
+            foreach (var approval in approvals)
+            {
+
+                if (approval.Manager?.User == null)
+                    continue;
+
+
+
+
+                string emailBody =
+                    $"""
+                    Leave Request Cancelled
+
+                    Employee:
+                    {leaveRequest.Employee.FullName}
+
+                    Leave Type:
+                    {leaveRequest.LeaveType}
+
+                    Start Date:
+                    {leaveRequest.StartDate:dd-MM-yyyy}
+
+                    End Date:
+                    {leaveRequest.EndDate:dd-MM-yyyy}
+
+                    The employee has cancelled this leave request.
+                    """;
+
+
+
+
+
+                await _emailService
+                    .SendEmailAsync(
+                        approval.Manager.User.Email!,
+                        "Leave Request Cancelled",
+                        emailBody);
+
+            }
 
         }
 
@@ -662,7 +973,9 @@ namespace LeaveMangement.API.Services
 
 
 
-
+        // =====================================================
+        // CALCULATE BUSINESS DAYS
+        // =====================================================
 
         private double CalculateBusinessDays(
             DateTime startDate,

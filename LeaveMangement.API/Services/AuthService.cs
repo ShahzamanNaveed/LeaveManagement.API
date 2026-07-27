@@ -128,11 +128,8 @@ namespace LeaveMangement.API.Services
 
                 Designation = request.Designation,
 
-                ManagerId = null,
-
                 IsManager = false
             };
-
 
 
 

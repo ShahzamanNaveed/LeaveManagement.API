@@ -19,9 +19,13 @@ namespace LeaveManagement.API.Data
 
         public DbSet<Employee> Employees { get; set; }
 
+        public DbSet<EmployeeManagerAssignment> EmployeeManagerAssignments { get; set; }
+
         public DbSet<LeaveBalance> LeaveBalances { get; set; }
 
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
+
+        public DbSet<LeaveApproval> LeaveApprovals { get; set; }
 
 
 
@@ -60,22 +64,32 @@ namespace LeaveManagement.API.Data
 
 
 
-
             // ==========================
-            // Employee Manager Relation
+            // Employee Manager Assignment
             // ==========================
 
-            modelBuilder.Entity<Employee>()
-                .HasOne(e => e.Manager)
+            modelBuilder.Entity<EmployeeManagerAssignment>()
 
-                .WithMany(e => e.Employees)
+                .HasOne(a => a.Employee)
 
-                .HasForeignKey(e => e.ManagerId)
+                .WithMany(e => e.ManagerAssignments)
+
+                .HasForeignKey(a => a.EmployeeId)
 
                 .OnDelete(DeleteBehavior.Restrict);
 
 
 
+
+            modelBuilder.Entity<EmployeeManagerAssignment>()
+
+                .HasOne(a => a.Manager)
+
+                .WithMany(e => e.EmployeeAssignments)
+
+                .HasForeignKey(a => a.ManagerId)
+
+                .OnDelete(DeleteBehavior.Restrict);
 
 
 
@@ -98,13 +112,45 @@ namespace LeaveManagement.API.Data
 
             modelBuilder.Entity<LeaveRequest>()
 
+                .HasMany(l => l.Approvals)
+
+                .WithOne(a => a.LeaveRequest)
+
+                .HasForeignKey(a => a.LeaveRequestId)
+
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+
+            modelBuilder.Entity<LeaveRequest>()
+
                 .Property(l => l.LeaveType)
 
                 .HasConversion<int>();
 
 
 
+            // ==========================
+            // Leave Approval
+            // ==========================
 
+            modelBuilder.Entity<LeaveApproval>()
+
+                .HasOne(a => a.Manager)
+
+                .WithMany()
+
+                .HasForeignKey(a => a.ManagerId)
+
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            modelBuilder.Entity<LeaveApproval>()
+
+                .Property(a => a.Status)
+
+                .HasConversion<int>();
 
 
 
@@ -133,15 +179,9 @@ namespace LeaveManagement.API.Data
 
 
 
-
-
-
             // ==========================
             // Permission Configuration
             // ==========================
-
-
-            // Composite Key
 
             modelBuilder.Entity<RolePermission>()
 
@@ -153,10 +193,6 @@ namespace LeaveManagement.API.Data
 
 
 
-
-
-
-            // Role -> RolePermission
 
             modelBuilder.Entity<RolePermission>()
 
@@ -170,11 +206,6 @@ namespace LeaveManagement.API.Data
 
 
 
-
-
-
-
-            // Permission -> RolePermission
 
             modelBuilder.Entity<RolePermission>()
 

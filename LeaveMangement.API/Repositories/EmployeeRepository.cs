@@ -7,17 +7,13 @@ namespace LeaveManagement.API.Repositories
 {
     public class EmployeeRepository : IEmployeeRepository
     {
-
         private readonly ApplicationDbContext _context;
-
 
         public EmployeeRepository(
             ApplicationDbContext context)
         {
             _context = context;
         }
-
-
 
         public async Task AddAsync(
             Employee employee)
@@ -26,18 +22,10 @@ namespace LeaveManagement.API.Repositories
                 .AddAsync(employee);
         }
 
-
-
-
-
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();
         }
-
-
-
-
 
         public async Task<Employee?> GetByUserIdAsync(
             string userId)
@@ -47,69 +35,92 @@ namespace LeaveManagement.API.Repositories
                     e.UserId == userId);
         }
 
-
-
-
-
         public async Task<Employee?> GetByIdAsync(
             int employeeId)
         {
             return await _context.Employees
+                .Include(e => e.User)
                 .FirstOrDefaultAsync(e =>
                     e.Id == employeeId);
         }
-
-
-
-
-
-        public async Task<Employee?> GetEmployeeWithManagerAsync(
-            int employeeId)
-        {
-            return await _context.Employees
-
-                // Employee email
-                .Include(e =>
-                    e.User)
-
-                // Manager object
-                .Include(e =>
-                    e.Manager)
-
-                    // Manager email
-                    .ThenInclude(m =>
-                        m.User)
-
-                .FirstOrDefaultAsync(e =>
-                    e.Id == employeeId);
-        }
-
-
-
-
-
-        public async Task<List<Employee>>
-            GetEmployeesByManagerIdAsync(
-                int managerId)
-        {
-            return await _context.Employees
-                .Where(e =>
-                    e.ManagerId == managerId)
-                .ToListAsync();
-        }
-
-
-
-
 
         public async Task<List<Employee>>
             GetAllEmployeesAsync()
         {
             return await _context.Employees
+
                 .Include(e =>
-                    e.Manager)
+                    e.ManagerAssignments)
+
+                    .ThenInclude(a =>
+                        a.Manager)
+
                 .ToListAsync();
         }
 
+        // =========================
+        // Multi Manager
+        // =========================
+
+        public async Task<List<EmployeeManagerAssignment>>
+            GetManagerAssignmentsAsync(
+                int employeeId)
+        {
+            return await _context.EmployeeManagerAssignments
+
+                .Where(a =>
+                    a.EmployeeId == employeeId &&
+                    a.IsActive)
+
+                .ToListAsync();
+        }
+
+        public async Task<List<Employee>>
+            GetManagersByEmployeeIdAsync(
+                int employeeId)
+        {
+            return await _context.EmployeeManagerAssignments
+
+                .Where(a =>
+                    a.EmployeeId == employeeId &&
+                    a.IsActive)
+
+                .Include(a =>
+                    a.Manager)
+
+                        .ThenInclude(m =>
+                            m.User)
+
+                .Select(a =>
+                    a.Manager)
+
+                .ToListAsync();
+        }
+
+        public async Task<List<Employee>>
+            GetEmployeesByIdsAsync(
+                List<int> employeeIds)
+        {
+            return await _context.Employees
+
+                .Where(e =>
+                    employeeIds.Contains(e.Id))
+
+                .ToListAsync();
+        }
+
+        public async Task AddManagerAssignmentsAsync(
+            List<EmployeeManagerAssignment> assignments)
+        {
+            await _context.EmployeeManagerAssignments
+                .AddRangeAsync(assignments);
+        }
+
+        public void RemoveManagerAssignments(
+            List<EmployeeManagerAssignment> assignments)
+        {
+            _context.EmployeeManagerAssignments
+                .RemoveRange(assignments);
+        }
     }
 }
