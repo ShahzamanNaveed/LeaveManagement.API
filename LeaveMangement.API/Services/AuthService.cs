@@ -2,9 +2,12 @@
 using LeaveManagement.API.Exceptions;
 using LeaveManagement.API.Models;
 using LeaveManagement.API.Configurations;
+using LeaveManagement.API.Data;
+
 using Microsoft.AspNetCore.Identity;
 using LeaveMangement.API.DTOs;
 using LeaveMangement.API.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace LeaveMangement.API.Services
 {
@@ -21,6 +24,8 @@ namespace LeaveMangement.API.Services
 
         private readonly ITokenService _tokenService;
 
+        private readonly ApplicationDbContext _context;
+
 
 
         public AuthService(
@@ -28,7 +33,8 @@ namespace LeaveMangement.API.Services
             RoleManager<IdentityRole> roleManager,
             IEmployeeRepository employeeRepository,
             ILeaveBalanceRepository leaveBalanceRepository,
-            ITokenService tokenService)
+            ITokenService tokenService,
+            ApplicationDbContext context)
         {
             _userManager = userManager;
 
@@ -39,6 +45,8 @@ namespace LeaveMangement.API.Services
             _leaveBalanceRepository = leaveBalanceRepository;
 
             _tokenService = tokenService;
+
+            _context = context;
         }
 
 
@@ -118,6 +126,7 @@ namespace LeaveMangement.API.Services
 
 
 
+
             var employee = new Employee
             {
                 UserId = user.Id,
@@ -144,6 +153,25 @@ namespace LeaveMangement.API.Services
 
 
 
+            // =========================
+            // Active Fiscal Year
+            // =========================
+
+            var activeFiscalYear =
+                await _context.FiscalYears
+                .FirstOrDefaultAsync(f =>
+                    f.IsActive);
+
+
+
+            if (activeFiscalYear == null)
+            {
+                throw new Exception(
+                    "No active fiscal year found.");
+            }
+
+
+
 
 
             var balances =
@@ -165,10 +193,11 @@ namespace LeaveMangement.API.Services
                             LeavePolicy
                             .GetDefaultDays(type),
 
-                        Year =
-                            DateTime.UtcNow.Year
+                        FiscalYearId =
+                            activeFiscalYear.Id
                     })
                 .ToList();
+
 
 
 
@@ -242,13 +271,11 @@ namespace LeaveMangement.API.Services
 
 
 
+
             int employeeId = 0;
 
 
 
-
-            // Admin is not an employee
-            // Manager and Employee have Employee records
 
             if (role != "Admin")
             {
@@ -282,6 +309,7 @@ namespace LeaveMangement.API.Services
                     employeeId,
                     user.Email!,
                     role);
+
 
 
 

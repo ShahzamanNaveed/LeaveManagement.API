@@ -27,6 +27,10 @@ namespace LeaveManagement.API.Data
 
         public DbSet<LeaveApproval> LeaveApprovals { get; set; }
 
+        public DbSet<FiscalYear> FiscalYears { get; set; }
+
+        public DbSet<FiscalYearSetting> FiscalYearSettings { get; set; }
+
 
 
         // ==========================
@@ -175,6 +179,40 @@ namespace LeaveManagement.API.Data
                 .Property(l => l.LeaveType)
 
                 .HasConversion<int>();
+
+
+            //==============
+            modelBuilder.Entity<LeaveBalance>()
+
+    .HasOne(l => l.FiscalYear)
+
+    .WithMany()
+
+    .HasForeignKey(l => l.FiscalYearId)
+
+    .OnDelete(DeleteBehavior.Restrict);
+
+
+            // ==========================
+            // Fiscal Year
+            // ==========================
+
+            modelBuilder.Entity<FiscalYear>()
+
+                .HasIndex(f =>
+                    f.Name)
+
+                .IsUnique();
+
+
+
+
+            modelBuilder.Entity<FiscalYearSetting>()
+
+                .HasIndex(f =>
+                    f.Id)
+
+                .IsUnique();
 
 
 

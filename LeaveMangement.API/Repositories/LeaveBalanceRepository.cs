@@ -26,13 +26,13 @@ namespace LeaveManagement.API.Repositories
         public async Task<LeaveBalance?> GetBalanceAsync(
             int employeeId,
             LeaveType leaveType,
-            int year)
+            int fiscalYearId)
         {
             return await _context.LeaveBalances
                 .FirstOrDefaultAsync(l =>
                     l.EmployeeId == employeeId &&
                     l.LeaveType == leaveType &&
-                    l.Year == year);
+                    l.FiscalYearId == fiscalYearId);
         }
 
         public async Task<List<LeaveBalance>> GetEmployeeBalancesAsync(
@@ -42,6 +42,20 @@ namespace LeaveManagement.API.Repositories
                 .Where(l => l.EmployeeId == employeeId)
                 .OrderBy(l => l.LeaveType)
                 .ToListAsync();
+        }
+
+        // =====================================
+        // Check if balances already exist
+        // =====================================
+
+        public async Task<bool> ExistsAsync(
+     int employeeId,
+     int fiscalYearId)
+        {
+            return await _context.LeaveBalances
+                .AnyAsync(x =>
+                    x.EmployeeId == employeeId &&
+                    x.FiscalYearId == fiscalYearId);
         }
 
         public async Task SaveChangesAsync()

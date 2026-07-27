@@ -499,6 +499,75 @@ namespace LeaveManagement.API.Data
             }
 
 
+            // =====================
+            // Active Fiscal Year
+            // =====================
+
+            var activeFiscalYear =
+                await context.FiscalYears
+                .FirstOrDefaultAsync(f =>
+                    f.IsActive);
+
+
+
+            if (activeFiscalYear == null)
+            {
+                var currentYear = DateTime.UtcNow.Year;
+
+
+                activeFiscalYear = new FiscalYear
+                {
+                    Name = $"FY-{currentYear}",
+
+                    StartDate =
+                        new DateTime(currentYear, 1, 1),
+
+                    EndDate =
+                        new DateTime(currentYear, 12, 31),
+
+                    IsActive = true,
+
+                    CreatedAt = DateTime.UtcNow
+                };
+
+
+                await context.FiscalYears
+                    .AddAsync(activeFiscalYear);
+
+
+                await context.SaveChangesAsync();
+            }
+
+
+            // =====================
+            // Fiscal Year Settings
+            // =====================
+
+            var fiscalSettings =
+                await context.FiscalYearSettings
+                .FirstOrDefaultAsync();
+
+
+
+            if (fiscalSettings == null)
+            {
+                fiscalSettings = new FiscalYearSetting
+                {
+                    StartMonth = 1,
+
+                    StartDay = 1,
+
+                    CreatedAt = DateTime.UtcNow
+                };
+
+
+                await context.FiscalYearSettings
+                    .AddAsync(fiscalSettings);
+
+
+                await context.SaveChangesAsync();
+            }
+
 
 
             // =====================
@@ -525,13 +594,13 @@ namespace LeaveManagement.API.Data
 
 
                     bool exists =
-                        await context.LeaveBalances
-                        .AnyAsync(x =>
-                            x.EmployeeId == employee.Id
+                    await context.LeaveBalances
+     .              AnyAsync(x =>
+                    x.EmployeeId == employee.Id
                             &&
-                            x.LeaveType == type
+                    x.LeaveType == type
                             &&
-                            x.Year == DateTime.UtcNow.Year);
+                    x.FiscalYearId == activeFiscalYear.Id);
 
 
 
@@ -568,8 +637,8 @@ namespace LeaveManagement.API.Data
                                     balance,
 
 
-                                Year =
-                                    DateTime.UtcNow.Year
+                                FiscalYearId =
+                                           activeFiscalYear.Id
 
                             });
 

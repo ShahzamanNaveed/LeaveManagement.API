@@ -1,9 +1,14 @@
 ﻿using LeaveManagement.API.Configurations;
 using LeaveManagement.API.Enums;
 using LeaveManagement.API.Models;
+using LeaveManagement.API.Data;
+
 using LeaveMangement.API.DTOs;
 using LeaveMangement.API.Interfaces;
+
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace LeaveManagement.API.Services
 {
@@ -18,13 +23,16 @@ namespace LeaveManagement.API.Services
 
         private readonly ILeaveBalanceRepository _leaveBalanceRepository;
 
+        private readonly ApplicationDbContext _context;
+
 
 
         public AdminService(
             IEmployeeRepository employeeRepository,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            ILeaveBalanceRepository leaveBalanceRepository)
+            ILeaveBalanceRepository leaveBalanceRepository,
+            ApplicationDbContext context)
         {
             _employeeRepository = employeeRepository;
 
@@ -33,6 +41,8 @@ namespace LeaveManagement.API.Services
             _roleManager = roleManager;
 
             _leaveBalanceRepository = leaveBalanceRepository;
+
+            _context = context;
         }
 
 
@@ -41,7 +51,7 @@ namespace LeaveManagement.API.Services
 
 
         public async Task<List<AdminEmployeeResponseDto>>
-    GetAllEmployeesAsync()
+            GetAllEmployeesAsync()
         {
 
             var employees =
@@ -64,13 +74,10 @@ namespace LeaveManagement.API.Services
 
                         ManagerNames =
                             e.ManagerAssignments
-
                                 .Where(a =>
                                     a.IsActive)
-
                                 .Select(a =>
                                     a.Manager.FullName)
-
                                 .ToList(),
 
                         IsManager = e.IsManager
@@ -79,6 +86,8 @@ namespace LeaveManagement.API.Services
                 .ToList();
 
         }
+
+
 
 
 
@@ -100,7 +109,6 @@ namespace LeaveManagement.API.Services
                 throw new Exception(
                     "Email already exists.");
             }
-
 
 
 
@@ -142,7 +150,6 @@ namespace LeaveManagement.API.Services
 
 
 
-
             if (!await _roleManager
                 .RoleExistsAsync("Employee"))
             {
@@ -159,6 +166,7 @@ namespace LeaveManagement.API.Services
                 .AddToRoleAsync(
                     user,
                     "Employee");
+
 
 
 
@@ -192,9 +200,7 @@ namespace LeaveManagement.API.Services
 
 
 
-            // =========================
-            // Assign Managers
-            // =========================
+
 
             if (request.ManagerIds.Any())
             {
@@ -223,27 +229,51 @@ namespace LeaveManagement.API.Services
 
 
 
+
                 var assignments =
                     managers
-                        .Select(m =>
-                            new EmployeeManagerAssignment
-                            {
-                                EmployeeId = employee.Id,
+                    .Select(m =>
+                        new EmployeeManagerAssignment
+                        {
+                            EmployeeId = employee.Id,
 
-                                ManagerId = m.Id
-                            })
-                        .ToList();
+                            ManagerId = m.Id
+                        })
+                    .ToList();
 
 
 
                 await _employeeRepository
-                    .AddManagerAssignmentsAsync(
-                        assignments);
+                    .AddManagerAssignmentsAsync(assignments);
 
 
                 await _employeeRepository
                     .SaveChangesAsync();
+
             }
+
+
+
+
+
+
+            // =========================
+            // Active Fiscal Year
+            // =========================
+
+            var activeFiscalYear =
+                await _context.FiscalYears
+                .FirstOrDefaultAsync(f =>
+                    f.IsActive);
+
+
+
+            if (activeFiscalYear == null)
+            {
+                throw new Exception(
+                    "No active fiscal year found.");
+            }
+
 
 
 
@@ -268,10 +298,11 @@ namespace LeaveManagement.API.Services
                             LeavePolicy
                             .GetDefaultDays(type),
 
-                        Year =
-                            DateTime.UtcNow.Year
+                        FiscalYearId =
+                            activeFiscalYear.Id
                     })
                 .ToList();
+
 
 
 
@@ -281,6 +312,7 @@ namespace LeaveManagement.API.Services
                 .AddRangeAsync(balances);
 
 
+
             await _leaveBalanceRepository
                 .SaveChangesAsync();
 
@@ -288,8 +320,13 @@ namespace LeaveManagement.API.Services
 
 
 
+
+
+
+
+
         public async Task CreateManagerAsync(
-    CreateManagerRequestDto request)
+            CreateManagerRequestDto request)
         {
 
             var existingUser =
@@ -369,7 +406,6 @@ namespace LeaveManagement.API.Services
 
 
 
-
             var employee = new Employee
             {
                 UserId = user.Id,
@@ -399,6 +435,22 @@ namespace LeaveManagement.API.Services
 
 
 
+            var activeFiscalYear =
+                await _context.FiscalYears
+                .FirstOrDefaultAsync(f =>
+                    f.IsActive);
+
+
+
+            if (activeFiscalYear == null)
+            {
+                throw new Exception(
+                    "No active fiscal year found.");
+            }
+
+
+
+
 
 
             var balances =
@@ -420,10 +472,11 @@ namespace LeaveManagement.API.Services
                             LeavePolicy
                             .GetDefaultDays(type),
 
-                        Year =
-                            DateTime.UtcNow.Year
+                        FiscalYearId =
+                            activeFiscalYear.Id
                     })
                 .ToList();
+
 
 
 
@@ -433,6 +486,7 @@ namespace LeaveManagement.API.Services
                 .AddRangeAsync(balances);
 
 
+
             await _leaveBalanceRepository
                 .SaveChangesAsync();
 
@@ -440,9 +494,14 @@ namespace LeaveManagement.API.Services
 
 
 
+
+
+
+
+
         public async Task AssignManagerAsync(
-       int employeeId,
-       AssignManagerRequestDto request)
+            int employeeId,
+            AssignManagerRequestDto request)
         {
 
             var employee =
@@ -500,14 +559,13 @@ namespace LeaveManagement.API.Services
 
 
 
-            // =========================
-            // Replace Existing Assignments
-            // =========================
+
 
             var existingAssignments =
                 await _employeeRepository
                 .GetManagerAssignmentsAsync(
                     employeeId);
+
 
 
 
@@ -517,20 +575,22 @@ namespace LeaveManagement.API.Services
 
 
 
+
             var newAssignments =
                 managers
-                    .Select(manager =>
-                        new EmployeeManagerAssignment
-                        {
-                            EmployeeId = employeeId,
+                .Select(manager =>
+                    new EmployeeManagerAssignment
+                    {
+                        EmployeeId = employeeId,
 
-                            ManagerId = manager.Id,
+                        ManagerId = manager.Id,
 
-                            AssignedOn = DateTime.UtcNow,
+                        AssignedOn = DateTime.UtcNow,
 
-                            IsActive = true
-                        })
-                    .ToList();
+                        IsActive = true
+                    })
+                .ToList();
+
 
 
 

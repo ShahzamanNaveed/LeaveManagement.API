@@ -11,10 +11,14 @@ namespace LeaveMangement.API.Interfaces
         Task<LeaveBalance?> GetBalanceAsync(
             int employeeId,
             LeaveType leaveType,
-            int year);
+            int fiscalYearId);
 
         Task<List<LeaveBalance>> GetEmployeeBalancesAsync(
             int employeeId);
+
+        Task<bool> ExistsAsync(
+            int employeeId,
+            int fiscalYearId);
 
         Task SaveChangesAsync();
     }

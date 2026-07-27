@@ -16,13 +16,16 @@ namespace LeaveMangement.API.Services
 
         private readonly IEmailService _emailService;
 
+        private readonly IFiscalYearService _fiscalYearService;
+
 
 
         public LeaveService(
-            ILeaveRequestRepository leaveRequestRepository,
-            ILeaveBalanceRepository leaveBalanceRepository,
-            IEmployeeRepository employeeRepository,
-            IEmailService emailService)
+     ILeaveRequestRepository leaveRequestRepository,
+     ILeaveBalanceRepository leaveBalanceRepository,
+     IEmployeeRepository employeeRepository,
+     IEmailService emailService,
+     IFiscalYearService fiscalYearService)
         {
             _leaveRequestRepository =
                 leaveRequestRepository;
@@ -35,6 +38,9 @@ namespace LeaveMangement.API.Services
 
             _emailService =
                 emailService;
+
+            _fiscalYearService =
+                fiscalYearService;
         }
 
 
@@ -56,7 +62,53 @@ namespace LeaveMangement.API.Services
                     "Start date cannot be after end date.");
             }
 
+            // =====================================================
+            // Validate Past Date
+            // =====================================================
 
+            if (request.StartDate.Date < DateTime.UtcNow.Date)
+            {
+                throw new BadRequestException(
+                    "Leave cannot be applied for past dates.");
+            }
+
+            // =====================================================
+            // Validate Half-Day Leave
+            // =====================================================
+
+            if (request.IsHalfDay)
+            {
+                if (request.StartDate.Date != request.EndDate.Date)
+                {
+                    throw new BadRequestException(
+                        "Half-day leave can only be applied for a single day.");
+                }
+
+                if (request.StartDate.DayOfWeek == DayOfWeek.Saturday ||
+                    request.StartDate.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    throw new BadRequestException(
+                        "Half-day leave cannot be applied on weekends.");
+                }
+            }
+
+            // =====================================================
+            // Validate Weekend Leave
+            // =====================================================
+
+            if (!request.IsHalfDay)
+            {
+                double businessDays =
+                    CalculateBusinessDays(
+                        request.StartDate,
+                        request.EndDate);
+
+                if (businessDays == 0)
+                {
+                    throw new BadRequestException(
+                        "Leave cannot be applied only for weekends.");
+                }
+            }
 
             bool hasPending =
                 await _leaveRequestRepository
@@ -111,12 +163,18 @@ namespace LeaveMangement.API.Services
 
 
 
+            var fiscalYear =
+    await _fiscalYearService
+    .GetActiveFiscalYearAsync();
+
+
+
             var balance =
                 await _leaveBalanceRepository
                 .GetBalanceAsync(
                     employeeId,
                     request.LeaveType,
-                    DateTime.UtcNow.Year);
+                    fiscalYear.Id);
 
 
 
@@ -380,26 +438,23 @@ namespace LeaveMangement.API.Services
 
 
             return balances
-                .Select(b =>
-                    new LeaveBalanceResponseDto
-                    {
-                        LeaveType =
-                            b.LeaveType.ToString(),
+    .Select(b =>
+        new LeaveBalanceResponseDto
+        {
+            LeaveType =
+                b.LeaveType.ToString(),
 
-                        TotalBalance =
-                            b.TotalBalance,
+            TotalBalance =
+                b.TotalBalance,
 
-                        ConsumedBalance =
-                            b.ConsumedBalance,
+            ConsumedBalance =
+                b.ConsumedBalance,
 
-                        RemainingBalance =
-                            b.RemainingBalance,
+            RemainingBalance =
+                b.RemainingBalance
 
-                        Year =
-                            b.Year
-
-                    })
-                .ToList();
+        })
+    .ToList();
         }
 
 
@@ -588,12 +643,18 @@ namespace LeaveMangement.API.Services
             // Final Leave Approval Processing
             // =====================================================
 
+            var fiscalYear =
+    await _fiscalYearService
+    .GetActiveFiscalYearAsync();
+
+
+
             var balance =
                 await _leaveBalanceRepository
                 .GetBalanceAsync(
                     leaveRequest.EmployeeId,
                     leaveRequest.LeaveType,
-                    DateTime.UtcNow.Year);
+                    fiscalYear.Id);
 
 
 

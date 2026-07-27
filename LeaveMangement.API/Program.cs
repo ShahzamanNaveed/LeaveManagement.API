@@ -96,12 +96,24 @@ builder.Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ILeaveBalanceRepository, LeaveBalanceRepository>();
+builder.Services.AddScoped<IFiscalYearRepository, FiscalYearRepository>();
 builder.Services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
+
 builder.Services.AddScoped<ILeaveService, LeaveService>();
+builder.Services.AddScoped<IFiscalYearService, FiscalYearService>();
+builder.Services.AddScoped<IFiscalYearManagementService, FiscalYearManagementService>();
+
+builder.Services.AddScoped<
+    IFiscalYearSettingsRepository,
+    FiscalYearSettingsRepository>();
+
+builder.Services.AddScoped<
+    IFiscalYearSettingsService,
+    FiscalYearSettingsService>();
+
 builder.Services.AddScoped<IManagerService, ManagerService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
-
 
 // ======================================
 // JWT Authentication
