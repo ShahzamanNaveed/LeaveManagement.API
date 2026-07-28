@@ -28,26 +28,29 @@ namespace LeaveManagement.API.Features.LeaveManagement.Repositories
 
 
 
-        public async Task<bool> HasPendingRequestAsync(
-            int employeeId)
+        public async Task<double> GetPendingLeaveDaysAsync(
+    int employeeId,
+    LeaveType leaveType)
         {
             return await _context.LeaveRequests
-                .AnyAsync(l =>
+                .Where(l =>
                     l.EmployeeId == employeeId &&
-                    l.Status == LeaveStatus.Submitted);
+                    l.LeaveType == leaveType &&
+                    l.Status == LeaveStatus.Submitted)
+                .SumAsync(l => l.NumberOfDays);
         }
 
 
-
         public async Task<bool> HasOverlappingRequestAsync(
-            int employeeId,
-            DateTime startDate,
-            DateTime endDate)
+       int employeeId,
+       DateTime startDate,
+       DateTime endDate)
         {
             return await _context.LeaveRequests
                 .AnyAsync(l =>
                     l.EmployeeId == employeeId &&
                     l.Status != LeaveStatus.Rejected &&
+                    l.Status != LeaveStatus.Cancelled &&
                     startDate <= l.EndDate &&
                     endDate >= l.StartDate);
         }

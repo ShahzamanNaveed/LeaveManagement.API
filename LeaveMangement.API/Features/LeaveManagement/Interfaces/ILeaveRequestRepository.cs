@@ -1,4 +1,5 @@
 ﻿using LeaveManagement.API.Domain.Entities;
+using LeaveManagement.API.Domain.Enums;
 
 namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
 {
@@ -10,8 +11,9 @@ namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
         Task AddLeaveApprovalsAsync(
             List<LeaveApproval> approvals);
 
-        Task<bool> HasPendingRequestAsync(
-            int employeeId);
+        Task<double> GetPendingLeaveDaysAsync(
+            int employeeId,
+            LeaveType leaveType);
 
         Task<bool> HasOverlappingRequestAsync(
             int employeeId,

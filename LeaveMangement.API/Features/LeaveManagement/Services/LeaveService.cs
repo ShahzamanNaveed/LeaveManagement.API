@@ -114,17 +114,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 }
             }
 
-            bool hasPending =
-                await _leaveRequestRepository
-                .HasPendingRequestAsync(employeeId);
-
-
-
-            if (hasPending)
-            {
-                throw new BadRequestException(
-                    "You already have a pending leave request.");
-            }
 
 
 
@@ -194,12 +183,20 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-            if (balance.RemainingBalance < numberOfDays)
+            var pendingLeaveDays =
+    await _leaveRequestRepository
+    .GetPendingLeaveDaysAsync(
+        employeeId,
+        request.LeaveType);
+
+            var availableBalance =
+                balance.RemainingBalance - pendingLeaveDays;
+
+            if (availableBalance < numberOfDays)
             {
                 throw new BadRequestException(
-                    "Insufficient leave balance.");
+                    $"Insufficient leave balance. Available: {availableBalance} day(s).");
             }
-
 
 
 
