@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using LeaveManagement.API.Common.Authorization;
 using LeaveManagement.API.Features.LeaveManagement.Dtos;
+using LeaveManagement.API.Domain.Enums;
 using LeaveManagement.API.Features.LeaveManagement.Interfaces;
 
 namespace LeaveManagement.API.Features.LeaveManagement.Controllers
@@ -187,12 +188,13 @@ namespace LeaveManagement.API.Features.LeaveManagement.Controllers
 
 
         // =========================
-        // Manager Pending Leaves
+        // Manager Leave Requests
         // =========================
 
-        [HttpGet("pending")]
+        [HttpGet("manager-requests")]
         [HasPermission("Leave.ViewPending")]
-        public async Task<IActionResult> GetPendingRequestsForManager()
+        public async Task<IActionResult> GetManagerRequests(
+            [FromQuery] LeaveStatus? status)
         {
             var managerIdClaim =
                 User.FindFirst("EmployeeId");
@@ -214,15 +216,14 @@ namespace LeaveManagement.API.Features.LeaveManagement.Controllers
 
             var requests =
                 await _leaveService
-                .GetPendingRequestsForManagerAsync(
-                    managerId);
+                .GetManagerRequestsAsync(
+                    managerId,
+                    status);
 
 
 
             return Ok(requests);
         }
-
-
 
 
 

@@ -1,4 +1,5 @@
-﻿using LeaveManagement.API.Features.LeaveManagement.Interfaces;
+﻿using LeaveManagement.API.Domain.Enums;
+using LeaveManagement.API.Features.LeaveManagement.Interfaces;
 using LeaveManagement.API.Features.Management.Dtos;
 using LeaveManagement.API.Features.Management.Interfaces;
 
@@ -19,7 +20,9 @@ namespace LeaveManagement.API.Features.Management.Services
         {
             var requests =
                 await _leaveRequestRepository
-                .GetPendingRequestsForManagerAsync(managerId);
+                .GetManagerRequestsAsync(
+                    managerId,
+                    LeaveStatus.Submitted);
 
             return requests.Select(l => new ManagerLeaveResponseDto
             {

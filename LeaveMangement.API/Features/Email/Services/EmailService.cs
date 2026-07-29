@@ -52,7 +52,7 @@ namespace LeaveManagement.API.Features.Email.Services
 
 
             email.Body =
-                new TextPart("plain")
+                new TextPart("html")
                 {
                     Text = body
                 };

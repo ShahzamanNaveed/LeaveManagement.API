@@ -1,4 +1,5 @@
-﻿using LeaveManagement.API.Features.LeaveManagement.Dtos;
+﻿using LeaveManagement.API.Domain.Enums;
+using LeaveManagement.API.Features.LeaveManagement.Dtos;
 using LeaveManagement.API.Features.Management.Dtos;
 
 namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
@@ -15,8 +16,9 @@ namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
         Task<List<LeaveBalanceResponseDto>> GetMyBalancesAsync(
             int employeeId);
 
-        Task<List<ManagerLeaveResponseDto>> GetPendingRequestsForManagerAsync(
-            int managerId);
+        Task<List<ManagerLeaveResponseDto>> GetManagerRequestsAsync(
+            int managerId,
+            LeaveStatus? status);
 
         Task ApproveLeaveAsync(
             int leaveRequestId,
@@ -27,7 +29,7 @@ namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
             int managerId);
 
         Task CancelLeaveAsync(
-    int leaveRequestId,
-    int employeeId);
+            int leaveRequestId,
+            int employeeId);
     }
 }

@@ -25,8 +25,9 @@ namespace LeaveManagement.API.Features.LeaveManagement.Interfaces
                 int employeeId);
 
         Task<List<LeaveRequest>>
-            GetPendingRequestsForManagerAsync(
-                int managerId);
+            GetManagerRequestsAsync(
+                int managerId,
+                LeaveStatus? status);
 
         Task<LeaveRequest?> GetByIdAsync(
             int id);

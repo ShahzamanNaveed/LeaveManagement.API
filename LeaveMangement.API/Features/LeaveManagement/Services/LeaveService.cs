@@ -7,6 +7,7 @@ using LeaveManagement.API.Features.LeaveManagement.Interfaces;
 using LeaveManagement.API.Features.Management.Dtos;
 using LeaveManagement.API.Domain.Entities;
 using LeaveManagement.API.Domain.Enums;
+using LeaveManagement.API.Features.Email.Templates;
 
 namespace LeaveManagement.API.Features.LeaveManagement.Services
 {
@@ -21,8 +22,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
         private readonly IEmailService _emailService;
 
         private readonly IFiscalYearService _fiscalYearService;
-
-
 
         public LeaveService(
      ILeaveRequestRepository leaveRequestRepository,
@@ -46,9 +45,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             _fiscalYearService =
                 fiscalYearService;
         }
-
-
-
 
 
         // =====================================================
@@ -115,8 +111,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
             bool hasOverlap =
                 await _leaveRequestRepository
                 .HasOverlappingRequestAsync(
@@ -133,12 +127,7 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             double numberOfDays;
-
-
 
             if (request.IsHalfDay)
             {
@@ -151,8 +140,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                         request.StartDate,
                         request.EndDate);
             }
-
-
 
 
 
@@ -180,9 +167,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             var pendingLeaveDays =
     await _leaveRequestRepository
     .GetPendingLeaveDaysAsync(
@@ -199,8 +183,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
             // =====================================================
             // Get Assigned Managers
             // =====================================================
@@ -211,16 +193,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             if (!managers.Any())
             {
                 throw new BadRequestException(
                     "No manager assigned to employee.");
             }
-
-
-
 
 
             // =====================================================
@@ -258,19 +235,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 };
 
 
-
-
-
             await _leaveRequestRepository
                 .AddAsync(leaveRequest);
 
 
-
             await _leaveRequestRepository
                 .SaveChangesAsync();
-
-
-
 
 
             // =====================================================
@@ -295,19 +265,13 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             await _leaveRequestRepository
                 .AddLeaveApprovalsAsync(
                     approvals);
 
 
-
             await _leaveRequestRepository
                 .SaveChangesAsync();
-
-
-
 
 
             // =====================================================
@@ -319,45 +283,21 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 .GetByIdAsync(employeeId);
 
 
-
-
-
             foreach (var manager in managers)
             {
 
                 if (manager.User == null)
                     continue;
 
-
-
                 string emailBody =
-                    $"""
-                    New Leave Request Submitted
-
-                    Employee:
-                    {employee!.FullName}
-
-                    Department:
-                    {employee.Department}
-
-                    Leave Type:
-                    {request.LeaveType}
-
-                    Start Date:
-                    {request.StartDate:dd-MM-yyyy}
-
-                    End Date:
-                    {request.EndDate:dd-MM-yyyy}
-
-                    Number Of Days:
-                    {numberOfDays}
-
-                    Reason:
-                    {request.Reason}
-
-                    Please review the request.
-                    """;
-
+    LeaveSubmittedTemplate.Build(
+        employee!.FullName,
+        employee.Department,
+        request.LeaveType.ToString(),
+        request.StartDate,
+        request.EndDate,
+        numberOfDays,
+        request.Reason);
 
 
                 await _emailService
@@ -367,8 +307,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                         emailBody);
             }
         }
-
-
 
         // =====================================================
         // GET MY LEAVES
@@ -382,8 +320,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             var leaves =
                 await _leaveRequestRepository
                 .GetEmployeeLeavesAsync(employeeId);
-
-
 
             return leaves
                 .Select(l =>
@@ -418,9 +354,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                     })
                 .ToList();
         }
-
-
-
 
 
         // =====================================================
@@ -459,26 +392,20 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
         }
 
 
-
-
-
         // =====================================================
         // GET PENDING REQUESTS FOR MANAGER
         // =====================================================
 
         public async Task<List<ManagerLeaveResponseDto>>
-            GetPendingRequestsForManagerAsync(
-                int managerId)
+    GetManagerRequestsAsync(
+        int managerId,
+        LeaveStatus? status)
         {
-
             var requests =
                 await _leaveRequestRepository
-                .GetPendingRequestsForManagerAsync(
-                    managerId);
-
-
-
-
+                .GetManagerRequestsAsync(
+                    managerId,
+                    status);
 
             return requests
                 .Select(l =>
@@ -513,13 +440,9 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
                         AppliedAt =
                             l.AppliedAt
-
                     })
                 .ToList();
         }
-
-
-
 
 
         // =====================================================
@@ -537,9 +460,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                     leaveRequestId);
 
 
-
-
-
             if (leaveRequest == null)
             {
                 throw new NotFoundException(
@@ -548,16 +468,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             if (leaveRequest.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
                     "This leave request is already processed.");
             }
-
-
-
 
 
             // =====================================================
@@ -571,9 +486,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                     managerId);
 
 
-
-
-
             if (approval == null)
             {
                 throw new UnauthorizedException(
@@ -582,16 +494,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             if (approval.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
                     "You have already responded to this request.");
             }
-
-
-
 
 
             // =====================================================
@@ -611,9 +518,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 .SaveChangesAsync();
 
 
-
-
-
             // =====================================================
             // Check All Managers Approved
             // =====================================================
@@ -625,14 +529,9 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             bool allApproved =
                 approvals.All(a =>
                     a.Status == LeaveStatus.Approved);
-
-
-
 
 
             if (!allApproved)
@@ -648,16 +547,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
     await _fiscalYearService
     .GetActiveFiscalYearAsync();
 
-
-
             var balance =
                 await _leaveBalanceRepository
                 .GetBalanceAsync(
                     leaveRequest.EmployeeId,
                     leaveRequest.LeaveType,
                     fiscalYear.Id);
-
-
 
 
 
@@ -668,17 +563,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             if (balance.RemainingBalance <
                 leaveRequest.NumberOfDays)
             {
                 throw new BadRequestException(
                     "Insufficient leave balance.");
             }
-
-
 
 
 
@@ -691,20 +581,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             leaveRequest.Status =
                 LeaveStatus.Approved;
 
 
-
-
-
             await _leaveBalanceRepository
                 .SaveChangesAsync();
-
-
-
 
 
             // =====================================================
@@ -715,23 +597,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             {
 
                 string emailBody =
-                    $"""
-                    Your Leave Request Has Been Approved
-
-                    Leave Type:
-                    {leaveRequest.LeaveType}
-
-                    Start Date:
-                    {leaveRequest.StartDate:dd-MM-yyyy}
-
-                    End Date:
-                    {leaveRequest.EndDate:dd-MM-yyyy}
-
-                    Number Of Days:
-                    {leaveRequest.NumberOfDays}
-
-                    All assigned managers have approved your request.
-                    """;
+     LeaveApprovedTemplate.Build(
+         leaveRequest.LeaveType.ToString(),
+         leaveRequest.StartDate,
+         leaveRequest.EndDate,
+         leaveRequest.NumberOfDays);
 
 
 
@@ -743,10 +613,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
         }
-
-
-
-
 
         // =====================================================
         // REJECT LEAVE
@@ -764,16 +630,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             if (leaveRequest == null)
             {
                 throw new NotFoundException(
                     "Leave request not found.");
             }
-
-
-
 
 
             if (leaveRequest.Status != LeaveStatus.Submitted)
@@ -797,9 +658,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                     managerId);
 
 
-
-
-
             if (approval == null)
             {
                 throw new UnauthorizedException(
@@ -807,17 +665,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             if (approval.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
                     "You have already responded to this request.");
             }
-
-
-
 
 
             // =====================================================
@@ -832,9 +684,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 DateTime.UtcNow;
 
 
-
-
-
             // =====================================================
             // Reject Complete Leave Request
             // =====================================================
@@ -843,14 +692,8 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 LeaveStatus.Rejected;
 
 
-
-
-
             await _leaveRequestRepository
                 .SaveChangesAsync();
-
-
-
 
 
             // =====================================================
@@ -861,24 +704,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             {
 
                 string emailBody =
-                    $"""
-                    Your Leave Request Has Been Rejected
-
-                    Leave Type:
-                    {leaveRequest.LeaveType}
-
-                    Start Date:
-                    {leaveRequest.StartDate:dd-MM-yyyy}
-
-                    End Date:
-                    {leaveRequest.EndDate:dd-MM-yyyy}
-
-                    Number Of Days:
-                    {leaveRequest.NumberOfDays}
-
-                    Your manager has rejected this request.
-                    """;
-
+    LeaveRejectedTemplate.Build(
+        leaveRequest.LeaveType.ToString(),
+        leaveRequest.StartDate,
+        leaveRequest.EndDate,
+        leaveRequest.NumberOfDays);
 
 
                 await _emailService
@@ -906,15 +736,11 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             if (leaveRequest == null)
             {
                 throw new NotFoundException(
                     "Leave request not found.");
             }
-
-
 
 
 
@@ -925,9 +751,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             if (leaveRequest.Status != LeaveStatus.Submitted)
             {
                 throw new BadRequestException(
@@ -935,14 +758,8 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
 
-
-
-
             leaveRequest.Status =
                 LeaveStatus.Cancelled;
-
-
-
 
 
             // =====================================================
@@ -953,9 +770,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 await _leaveRequestRepository
                 .GetApprovalsAsync(
                     leaveRequestId);
-
-
-
 
 
             foreach (var approval in approvals)
@@ -976,13 +790,8 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
 
-
-
             await _leaveRequestRepository
                 .SaveChangesAsync();
-
-
-
 
 
             // =====================================================
@@ -996,29 +805,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                     continue;
 
 
-
-
                 string emailBody =
-                    $"""
-                    Leave Request Cancelled
-
-                    Employee:
-                    {leaveRequest.Employee.FullName}
-
-                    Leave Type:
-                    {leaveRequest.LeaveType}
-
-                    Start Date:
-                    {leaveRequest.StartDate:dd-MM-yyyy}
-
-                    End Date:
-                    {leaveRequest.EndDate:dd-MM-yyyy}
-
-                    The employee has cancelled this leave request.
-                    """;
-
-
-
+    LeaveCancelledTemplate.Build(
+        leaveRequest.Employee.FullName,
+        leaveRequest.LeaveType.ToString(),
+        leaveRequest.StartDate,
+        leaveRequest.EndDate);
 
 
                 await _emailService
@@ -1030,10 +822,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             }
 
         }
-
-
-
-
 
         // =====================================================
         // CALCULATE BUSINESS DAYS
@@ -1062,8 +850,6 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
                 }
 
             }
-
-
 
             return days;
         }

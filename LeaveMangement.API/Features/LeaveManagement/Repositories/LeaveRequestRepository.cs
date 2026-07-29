@@ -74,10 +74,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Repositories
 
 
         public async Task<List<LeaveRequest>>
-            GetPendingRequestsForManagerAsync(
-                int managerId)
+    GetManagerRequestsAsync(
+        int managerId,
+        LeaveStatus? status)
         {
-            return await _context.LeaveRequests
+            var query =
+                _context.LeaveRequests
 
                 .Include(l =>
                     l.Employee)
@@ -89,12 +91,21 @@ namespace LeaveManagement.API.Features.LeaveManagement.Repositories
                     l.Approvals)
 
                 .Where(l =>
-
-                    l.Status == LeaveStatus.Submitted &&
-
                     l.Approvals.Any(a =>
-                        a.ManagerId == managerId &&
-                        a.Status == LeaveStatus.Submitted))
+                        a.ManagerId == managerId));
+
+
+
+            if (status.HasValue)
+            {
+                query =
+                    query.Where(l =>
+                        l.Status == status.Value);
+            }
+
+
+
+            return await query
 
                 .OrderByDescending(l =>
                     l.AppliedAt)
