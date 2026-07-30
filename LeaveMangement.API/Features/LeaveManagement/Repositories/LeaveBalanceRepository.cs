@@ -35,12 +35,12 @@ namespace LeaveManagement.API.Features.LeaveManagement.Repositories
                     l.FiscalYearId == fiscalYearId);
         }
 
-        public async Task<List<LeaveBalance>> GetEmployeeBalancesAsync(
-            int employeeId)
+        public async Task<List<LeaveBalance>>
+    GetEmployeeBalancesAsync(int employeeId)
         {
             return await _context.LeaveBalances
-                .Where(l => l.EmployeeId == employeeId)
-                .OrderBy(l => l.LeaveType)
+                .Include(x => x.FiscalYear)
+                .Where(x => x.EmployeeId == employeeId)
                 .ToListAsync();
         }
 

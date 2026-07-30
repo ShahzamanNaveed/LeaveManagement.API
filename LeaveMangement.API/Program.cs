@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -176,7 +177,7 @@ builder.Services
     });
 
 // ======================================
-// Authorization + Dynamic Permissions
+// Authorization
 // ======================================
 
 builder.Services.AddAuthorization();
@@ -193,12 +194,19 @@ builder.Services.AddScoped<
 // Email
 // ======================================
 
-builder.Services
-    .Configure<EmailSettings>(
-        builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services
-    .AddScoped<IEmailService, EmailService>();
+// ======================================
+// Seed Admin Configuration
+// ======================================
+
+builder.Services.Configure<SeedAdminSettings>(
+    builder.Configuration.GetSection("SeedAdmin"));
+
+// ======================================
+
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // ======================================
 // Build
@@ -229,7 +237,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ======================================
-// Seed Database
+// Seed Identity
 // ======================================
 
 using (var scope = app.Services.CreateScope())
@@ -245,10 +253,14 @@ using (var scope = app.Services.CreateScope())
     var context =
         services.GetRequiredService<ApplicationDbContext>();
 
+    var seedAdminSettings =
+        services.GetRequiredService<IOptions<SeedAdminSettings>>().Value;
+
     await IdentitySeeder.SeedAsync(
         userManager,
         roleManager,
-        context);
+        context,
+        seedAdminSettings);
 }
 
 // ======================================

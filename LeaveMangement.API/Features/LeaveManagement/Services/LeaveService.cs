@@ -368,25 +368,27 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
 
 
             return balances
-    .Select(b =>
-        new LeaveBalanceResponseDto
-        {
-            LeaveType =
-                b.LeaveType.ToString(),
+ .Select(b =>
+     new LeaveBalanceResponseDto
+     {
+         LeaveType =
+             b.LeaveType.ToString(),
 
-            TotalBalance =
-                b.TotalBalance,
+         TotalBalance =
+             b.TotalBalance,
 
-            ConsumedBalance =
-                b.ConsumedBalance,
+         ConsumedBalance =
+             b.ConsumedBalance,
 
-            RemainingBalance =
-                b.RemainingBalance
+         RemainingBalance =
+             b.RemainingBalance,
 
-        })
-    .ToList();
+         Year =
+             b.FiscalYear.StartDate.Year
+
+     })
+ .ToList();
         }
-
 
         // =====================================================
         // GET PENDING REQUESTS FOR MANAGER
