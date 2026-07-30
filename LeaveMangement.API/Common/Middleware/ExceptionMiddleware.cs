@@ -40,11 +40,27 @@ namespace LeaveManagement.API.Common.Middleware
 
             context.Response.StatusCode = statusCode;
 
-            var response = new
+            object response;
+
+            if (exception is BadRequestException badRequestException
+                && badRequestException.Errors != null
+                && badRequestException.Errors.Any())
             {
-                StatusCode = statusCode,
-                Message = exception.Message
-            };
+                response = new
+                {
+                    StatusCode = statusCode,
+                    Message = badRequestException.Message,
+                    Errors = badRequestException.Errors
+                };
+            }
+            else
+            {
+                response = new
+                {
+                    StatusCode = statusCode,
+                    Message = exception.Message
+                };
+            }
 
             await context.Response.WriteAsync(
                 JsonSerializer.Serialize(response));

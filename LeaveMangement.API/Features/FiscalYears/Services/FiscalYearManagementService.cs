@@ -77,14 +77,6 @@ namespace LeaveManagement.API.Features.FiscalYears.Services
             CreateAsync(
                 CreateFiscalYearDto request)
         {
-            // Validate Dates
-
-            if (request.EndDate <= request.StartDate)
-            {
-                throw new BadRequestException(
-                    "End date must be after start date.");
-            }
-
 
 
             // Duplicate Name

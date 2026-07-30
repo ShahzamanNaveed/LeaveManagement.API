@@ -56,11 +56,7 @@ namespace LeaveManagement.API.Features.LeaveManagement.Services
             ApplyLeaveRequestDto request)
         {
 
-            if (request.StartDate > request.EndDate)
-            {
-                throw new BadRequestException(
-                    "Start date cannot be after end date.");
-            }
+
 
             // =====================================================
             // Validate Past Date

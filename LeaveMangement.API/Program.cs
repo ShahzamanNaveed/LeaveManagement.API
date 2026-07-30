@@ -1,5 +1,8 @@
+using FluentValidation;
 using LeaveManagement.API.Common.Authorization;
+using LeaveManagement.API.Common.Filters;
 using LeaveManagement.API.Common.Middleware;
+using LeaveManagement.API.Common.Validators.Authentication;
 using LeaveManagement.API.Domain.Entities;
 using LeaveManagement.API.Features.Administration.Interfaces;
 using LeaveManagement.API.Features.Administration.Services;
@@ -29,24 +32,33 @@ using NSwag.Generation.Processors.Security;
 using System.Text;
 using System.Text.Json.Serialization;
 
-
 var builder = WebApplication.CreateBuilder(args);
-
 
 // ======================================
 // Controllers
 // ======================================
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidationFilter>();
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters
         .Add(new JsonStringEnumConverter());
-    });
-
+});
 
 builder.Services.AddEndpointsApiExplorer();
 
+// ======================================
+// FluentValidation
+// ======================================
+
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+
+// ======================================
+// Swagger / OpenAPI
+// ======================================
 
 builder.Services.AddOpenApiDocument(config =>
 {
@@ -69,7 +81,6 @@ builder.Services.AddOpenApiDocument(config =>
         new AspNetCoreOperationSecurityScopeProcessor("JWT"));
 });
 
-
 // ======================================
 // Database
 // ======================================
@@ -79,7 +90,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-
 
 // ======================================
 // ASP.NET Identity
@@ -100,12 +110,14 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-
 // ======================================
 // Dependency Injection
 // ======================================
 
+builder.Services.AddScoped<ValidationFilter>();
+
 builder.Services.AddScoped<IAuthService, AuthService>();
+
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ILeaveBalanceRepository, LeaveBalanceRepository>();
 builder.Services.AddScoped<IFiscalYearRepository, FiscalYearRepository>();
@@ -163,42 +175,36 @@ builder.Services
             };
     });
 
-
 // ======================================
 // Authorization + Dynamic Permissions
 // ======================================
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<
+    IAuthorizationPolicyProvider,
+    PermissionPolicyProvider>();
 
-builder.Services.AddSingleton
-    <IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<
+    IAuthorizationHandler,
+    PermissionAuthorizationHandler>();
 
-
-builder.Services.AddScoped
-    <IAuthorizationHandler, PermissionAuthorizationHandler>();
-
-
-//=================================
+// ======================================
 // Email
-//=================================
+// ======================================
 
 builder.Services
     .Configure<EmailSettings>(
-        builder.Configuration
-        .GetSection("EmailSettings"));
-
+        builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services
     .AddScoped<IEmailService, EmailService>();
-
 
 // ======================================
 // Build
 // ======================================
 
 var app = builder.Build();
-
 
 // ======================================
 // Pipeline
@@ -214,16 +220,13 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-
 app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
-
 app.UseAuthentication();
 
 app.UseAuthorization();
-
 
 // ======================================
 // Seed Database
@@ -248,12 +251,10 @@ using (var scope = app.Services.CreateScope())
         context);
 }
 
-
 // ======================================
 // Controllers
 // ======================================
 
 app.MapControllers();
-
 
 app.Run();

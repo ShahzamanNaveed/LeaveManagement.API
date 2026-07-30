@@ -121,15 +121,9 @@ namespace LeaveManagement.API.Features.FiscalYears.Services
         // ==========================================
 
         private static void ValidateDate(
-            int month,
-            int day)
+    int month,
+    int day)
         {
-            if (month < 1 || month > 12)
-            {
-                throw new BadRequestException(
-                    "Start month must be between 1 and 12.");
-            }
-
             try
             {
                 _ = new DateTime(2024, month, day);
